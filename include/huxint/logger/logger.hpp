@@ -16,6 +16,7 @@ namespace huxint {
         constexpr String(const char (&str)[N]) {
             std::copy_n(str, N, data);
         }
+
         constexpr operator std::string_view() const {
             return {data, N - 1};
         }
@@ -25,13 +26,11 @@ namespace huxint {
     struct LoggerState {
         Level level = Level::Trace;
         std::vector<std::shared_ptr<Sink>> sinks;
-        std::unique_ptr<ThreadPool> pool = std::make_unique<ThreadPool>(1);
+        std::unique_ptr<ThreadPool<>> pool = std::make_unique<ThreadPool<>>(1);
 
         void flush() {
-            pool->submit([] {
-                })
-                .wait();
-            for (auto &sink : sinks) {
+            pool->wait();
+            for (const auto &sink : sinks) {
                 sink->flush();
             }
         }
@@ -50,15 +49,16 @@ namespace huxint {
             state_.sinks.push_back(std::move(sink));
         }
 
-        static void set_level(Level level) {
+        static void set_level(const Level level) {
             state_.level = level;
         }
+
         static Level level() {
             return state_.level;
         }
 
         static void set_thread_count(std::size_t count) {
-            state_.pool = std::make_unique<ThreadPool>(count);
+            state_.pool = std::make_unique<ThreadPool<>>(count);
         }
 
         template <typename... Args>
