@@ -36,27 +36,26 @@ namespace huxint {
     // 控制台输出
     class ConsoleSink final : public Sink {
     public:
-        explicit ConsoleSink(bool color = true)
+        explicit ConsoleSink(const bool color = true)
         : color_(color) {
             if (color_) {
                 enable_ansi();
             }
         }
 
-        void write(Level level, std::string_view name, const std::string &msg) override {
+        void write(const Level level, std::string_view name, const std::string &msg) override {
             std::scoped_lock lock(mutex_);
-            auto now = std::chrono::system_clock::now();
             if (color_) {
                 if (name.empty()) {
-                    std::println("{}[{}][{}] {}{}", color_code(level), now, to_string(level), msg, "\033[0m");
+                    std::println("[{}][{}] {}{}", color_code(level), to_string(level), msg, "\033[0m");
                 } else {
-                    std::println("{}[{}][{}][{}] {}{}", color_code(level), now, to_string(level), name, msg, "\033[0m");
+                    std::println("[{}][{}][{}] {}{}", color_code(level), to_string(level), name, msg, "\033[0m");
                 }
             } else {
                 if (name.empty()) {
-                    std::println("[{}][{}] {}", now, to_string(level), msg);
+                    std::println("[{}] {}", to_string(level), msg);
                 } else {
-                    std::println("[{}][{}][{}] {}", now, to_string(level), name, msg);
+                    std::println("[{}][{}] {}", to_string(level), name, msg);
                 }
             }
         }
@@ -70,7 +69,7 @@ namespace huxint {
         bool color_;
         std::mutex mutex_;
 
-        static const char *color_code(Level level) {
+        static const char *color_code(const Level level) {
             switch (level) {
                 case Level::Trace:
                     return "\033[90m"; // gray
@@ -100,13 +99,12 @@ namespace huxint {
             }
         }
 
-        void write(Level level, std::string_view name, const std::string &msg) override {
+        void write(const Level level, std::string_view name, const std::string &msg) override {
             std::scoped_lock lock(mutex_);
-            auto now = std::chrono::system_clock::now();
             if (name.empty()) {
-                file_ << std::format("[{}][{}] {}\n", now, to_string(level), msg);
+                file_ << std::format("[{}] {}\n", to_string(level), msg);
             } else {
-                file_ << std::format("[{}][{}][{}] {}\n", now, to_string(level), name, msg);
+                file_ << std::format("[{}][{}] {}\n", to_string(level), name, msg);
             }
         }
 
