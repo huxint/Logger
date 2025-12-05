@@ -47,15 +47,15 @@ namespace huxint {
             std::scoped_lock lock(mutex_);
             if (color_) {
                 if (name.empty()) {
-                    std::println("[{}][{}] {}{}", color_code(level), to_string(level), msg, "\033[0m");
+                    std::println("{}[{}] {}{}", color_code(level), to_string(level), msg, "\033[0m");
                 } else {
-                    std::println("[{}][{}][{}] {}{}", color_code(level), to_string(level), name, msg, "\033[0m");
+                    std::println("{}[{}: {}] {}{}", color_code(level), name, to_string(level), msg, "\033[0m");
                 }
             } else {
                 if (name.empty()) {
                     std::println("[{}] {}", to_string(level), msg);
                 } else {
-                    std::println("[{}][{}] {}", to_string(level), name, msg);
+                    std::println("[{}: {}] {}", color_code(level), name, to_string(level), msg);
                 }
             }
         }
