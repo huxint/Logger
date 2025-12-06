@@ -27,7 +27,7 @@ namespace huxint {
     // Sink 基类
     class Sink {
     public:
-        virtual ~Sink() = default;
+        virtual ~Sink() noexcept = default;
         virtual void write(Level level, std::string_view name, const std::string &msg) = 0;
         virtual void flush() = 0;
     };
@@ -103,7 +103,7 @@ namespace huxint {
             if (name.empty()) {
                 file_ << std::format("[{}] {}\n", to_string(level), msg);
             } else {
-                file_ << std::format("[{}][{}] {}\n", to_string(level), name, msg);
+                file_ << std::format("[{}: {}] {}\n", name, to_string(level), msg);
             }
         }
 
