@@ -1,5 +1,8 @@
+#include "huxint/logger/logger.hpp"
 #include "huxint/logger/sink.hpp"
 #include <huxint/logger.hpp>
+#include <chrono>
+#include <source_location>
 
 int main() {
     using namespace huxint;
@@ -7,11 +10,7 @@ int main() {
     Log::add_sink(std::make_shared<ConsoleSink>(true));
     Log::add_sink(std::make_shared<FileSink>("log.txt"));
 
-    Log::info("number: {} {} {} {:%Y-%m-%d %H:%M:%S}",
-              1,
-              2,
-              3,
-              std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
+    Log::info("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
     Log::warn("This is a warning message.");
     Log::error("This is an error message.");
     Log::fatal("This is a fatal error message.");
@@ -26,5 +25,12 @@ int main() {
     App::fatal("This is a fatal error message.");
     App::trace("This is a trace message.");
 
+    using huxint = huxint::Logger<"huxint">;
+    huxint::add_sink(std::make_shared<ConsoleSink>(true));
+    huxint::add_sink(std::make_shared<FileSink>("huxint.log"));
+    huxint::info(
+        "file {}, line {}", std::source_location::current().file_name(), std::source_location::current().line());
+
+    huxint::info("function: {}", std::source_location::current().function_name());
     return 0;
 }
