@@ -1,5 +1,4 @@
-#include "huxint/logger/logger.hpp"
-#include "huxint/logger/sink.hpp"
+#include <huxint/logger.hpp>
 #include <string>
 #include <thread>
 #include <vector>
