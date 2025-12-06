@@ -10,6 +10,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include <chrono>
 
 namespace huxint {
     inline std::once_flag ansi_flag;
@@ -46,15 +47,15 @@ namespace huxint {
             std::scoped_lock lock(mutex_);
             if (color_) {
                 if (name.empty()) {
-                    std::println("{}[{}] {}{}", color_code(level), to_string(level), msg, "\033[0m");
+                    std::println("{}[{:>5}] {}{}", color_code(level), to_string(level), msg, "\033[0m");
                 } else {
-                    std::println("{}[{}: {}] {}{}", color_code(level), name, to_string(level), msg, "\033[0m");
+                    std::println("{}[{:>5}]<{}> {}{}", color_code(level), to_string(level), name, msg, "\033[0m");
                 }
             } else {
                 if (name.empty()) {
-                    std::println("[{}] {}", to_string(level), msg);
+                    std::println("[{:>5}] {}", to_string(level), msg);
                 } else {
-                    std::println("[{}: {}] {}", name, to_string(level), msg);
+                    std::println("[{:>5}]<{}> {}", to_string(level), name, msg);
                 }
             }
         }
@@ -101,9 +102,16 @@ namespace huxint {
         void write(const Level level, std::string_view name, const std::string &msg) override {
             std::scoped_lock lock(mutex_);
             if (name.empty()) {
-                file_ << std::format("[{}] {}\n", to_string(level), msg);
+                file_ << std::format("[time: {:%F %T}][{:>5}] {}\n",
+                                     std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()),
+                                     to_string(level),
+                                     msg);
             } else {
-                file_ << std::format("[{}: {}] {}\n", name, to_string(level), msg);
+                file_ << std::format("[time: {:%F %T}][{:>5}]<{}> {}\n",
+                                     std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()),
+                                     to_string(level),
+                                     name,
+                                     msg);
             }
         }
 
