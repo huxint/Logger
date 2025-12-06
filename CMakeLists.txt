@@ -8,3 +8,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(Logger src/main.cpp)
 target_link_libraries(Logger stdc++exp)
 target_include_directories(Logger PRIVATE include)
+
+# 多线程日志测试
+add_executable(Test src/test.cpp)
+target_link_libraries(Test stdc++exp)
+target_include_directories(Test PRIVATE include)
