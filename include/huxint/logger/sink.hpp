@@ -68,7 +68,7 @@ namespace huxint {
         bool color_;
         std::mutex mutex_;
 
-        static const char *color_code(const Level level) {
+        static constexpr const char *color_code(const Level level) noexcept {
             switch (level) {
                 case Level::Trace:
                     return "\033[90m"; // gray

@@ -1,11 +1,12 @@
 #pragma once
 #include <cstdint>
-#include <string>
+#include <string_view>
 
 // 日志级别
 namespace huxint {
     enum class Level : std::uint8_t { Trace, Debug, Info, Warn, Error, Fatal };
-    inline std::string to_string(const Level level) {
+
+    constexpr std::string_view to_string(const Level level) noexcept {
         switch (level) {
             case Level::Trace:
                 return "TRACE";
