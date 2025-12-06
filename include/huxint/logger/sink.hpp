@@ -54,7 +54,7 @@ namespace huxint {
                 if (name.empty()) {
                     std::println("[{}] {}", to_string(level), msg);
                 } else {
-                    std::println("[{}: {}] {}", color_code(level), name, to_string(level), msg);
+                    std::println("[{}: {}] {}", name, to_string(level), msg);
                 }
             }
         }
