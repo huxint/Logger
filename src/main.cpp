@@ -5,8 +5,8 @@
 int main() {
     using namespace huxint;
     using Log = huxint::Logger<>;
-    Log::add_sink(std::make_shared<ConsoleSink>(true));
-    Log::add_sink(std::make_shared<FileSink>("log.txt"));
+    Log::add_sink<ConsoleSink<true>>();
+    Log::add_sink<FileSink>("log.txt");
 
     Log::info("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
     Log::warn("This is a warning message.");
@@ -15,7 +15,7 @@ int main() {
     Log::trace("This is a trace message.");
 
     using App = huxint::Logger<"App">;
-    App::add_sink(std::make_shared<ConsoleSink>(true));
+    App::add_sink<ConsoleSink<true>>();
 
     App::info("number: {} {} {}", 1, 2, 3);
     App::warn("This is a warning message.");
@@ -24,8 +24,8 @@ int main() {
     App::trace("This is a trace message.");
 
     using huxint = huxint::Logger<"huxint">;
-    huxint::add_sink(std::make_shared<ConsoleSink>(true));
-    huxint::add_sink(std::make_shared<FileSink>("huxint.log"));
+    huxint::add_sink<ConsoleSink<true>>();
+    huxint::add_sink<FileSink>("huxint.log");
     huxint::info(
         "file {}, line {}", std::source_location::current().file_name(), std::source_location::current().line());
 
