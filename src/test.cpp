@@ -55,8 +55,7 @@ void test_concurrent_logging() {
     std::println("--------------------------------------------------------------------------------------");
 
     using TestLogger = huxint::Logger<"ConcurrentTest">;
-    auto sink = std::make_shared<huxint::MemorySink>();
-    TestLogger::add_sink(sink);
+    auto *sink = TestLogger::add_sink<huxint::MemorySink>();
 
     constexpr int num_threads = 10;
     constexpr int logs_per_thread = 100;
@@ -91,8 +90,7 @@ void test_log_integrity() {
     std::println("--------------------------------------------------------------------------------------");
 
     using IntegrityLogger = huxint::Logger<"IntegrityTest">;
-    auto sink = std::make_shared<huxint::MemorySink>();
-    IntegrityLogger::add_sink(sink);
+    auto *sink = IntegrityLogger::add_sink<huxint::MemorySink>();
 
     constexpr int num_threads = 5;
     constexpr int logs_per_thread = 50;
@@ -134,8 +132,7 @@ void test_thread_pool_config() {
     std::println("--------------------------------------------------------------------------------------");
 
     using PoolLogger = huxint::Logger<"PoolTest">;
-    auto sink = std::make_shared<huxint::MemorySink>();
-    PoolLogger::add_sink(sink);
+    auto *sink = PoolLogger::add_sink<huxint::MemorySink>();
     PoolLogger::set_thread_count(4);
 
     constexpr int total_logs = 200;
@@ -159,8 +156,7 @@ void test_thread_pool_config() {
 void test_concurrent_levels() {
     std::println("--------------------------------------------------------------------------------------");
     using LevelLogger = huxint::Logger<"LevelTest">;
-    auto sink = std::make_shared<huxint::MemorySink>();
-    LevelLogger::add_sink(sink);
+    auto *sink = LevelLogger::add_sink<huxint::MemorySink>();
 
     std::vector<std::thread> threads;
     constexpr int logs_per_level = 50;
@@ -228,8 +224,7 @@ void test_stress() {
     std::println("--------------------------------------------------------------------------------------");
 
     using StressLogger = huxint::Logger<"StressTest">;
-    auto sink = std::make_shared<huxint::MemorySink>();
-    StressLogger::add_sink(sink);
+    auto *sink = StressLogger::add_sink<huxint::MemorySink>();
     StressLogger::set_thread_count(8);
 
     constexpr int num_threads = 20;
