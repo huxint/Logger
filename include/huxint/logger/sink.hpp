@@ -6,6 +6,7 @@
 #include <format>
 #include <stdexcept>
 #include <chrono>
+#include <mutex>
 #include "level.hpp"
 #include "util.hpp"
 
