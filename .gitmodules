@@ -1,0 +1,3 @@
+[submodule "external/thread-pool"]
+	path = external/thread-pool
+	url = https://github.com/huxint/ThreadPool.git

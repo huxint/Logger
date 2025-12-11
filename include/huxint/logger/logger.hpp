@@ -7,7 +7,7 @@
 #include <concepts>
 #include "level.hpp"
 #include "sink.hpp"
-#include "thread_pool.hpp"
+#include <huxint/thread_pool.hpp>
 
 namespace huxint {
     // Logger 状态
