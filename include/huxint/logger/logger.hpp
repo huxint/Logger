@@ -35,8 +35,11 @@ namespace huxint {
     public:
         template <typename T, typename... Args>
             requires std::derived_from<T, Sink>
-        static void add_sink(Args &&...args) {
-            state_.sinks.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+        static T *add_sink(Args &&...args) { // 添加返回 sink 指针, 方便自己配置
+            auto sink = std::make_unique<T>(std::forward<Args>(args)...);
+            auto *ptr = sink.get();
+            state_.sinks.push_back(std::move(sink));
+            return ptr;
         }
 
         static void set_level(const Level level) {
