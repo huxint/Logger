@@ -1,31 +1,19 @@
 #pragma once
 #include <string>
-#include <vector>
+#include <string_view>
 #include <memory>
 #include <format>
-#include <algorithm>
+#include <vector>
+#include <concepts>
 #include "level.hpp"
 #include "sink.hpp"
 #include "thread_pool.hpp"
 
 namespace huxint {
-    // 编译期字符串
-    template <std::size_t N>
-    struct String {
-        char data[N]{};
-        constexpr String(const char (&str)[N]) {
-            std::copy_n(str, N, data);
-        }
-
-        constexpr operator std::string_view() const {
-            return {data, N - 1};
-        }
-    };
-
     // Logger 状态
     struct LoggerState {
         Level level = Level::Trace;
-        std::vector<std::shared_ptr<Sink>> sinks;
+        std::vector<std::unique_ptr<Sink>> sinks;
         std::unique_ptr<ThreadPool<>> pool = std::make_unique<ThreadPool<>>(1);
 
         void flush() {
@@ -45,8 +33,10 @@ namespace huxint {
         inline static LoggerState state_; // 封装, 方便析构
 
     public:
-        static void add_sink(std::shared_ptr<Sink> sink) {
-            state_.sinks.push_back(std::move(sink));
+        template <typename T, typename... Args>
+            requires std::derived_from<T, Sink>
+        static void add_sink(Args &&...args) {
+            state_.sinks.push_back(std::make_unique<T>(std::forward<Args>(args)...));
         }
 
         static void set_level(const Level level) {
@@ -96,8 +86,9 @@ namespace huxint {
                 return;
             }
             for (auto &sink : state_.sinks) {
-                state_.pool->submit([sink, level, msg] {
-                    sink->write(level, Name, msg);
+                auto *p = sink.get();                 // 确保在提交任务时，sink 还存在
+                state_.pool->submit([p, level, msg] { // p 必须值传递，否则会导致悬空指针
+                    p->write(level, Name.str(), msg);
                 });
             }
         }
