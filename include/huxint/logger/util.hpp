@@ -39,6 +39,7 @@ constexpr std::string_view color_code(const Level level) noexcept {
         case Level::Fatal:
             return "\033[35m"; // magenta
         default:
+            std::unreachable();
             return "\033[0m";
     }
 }

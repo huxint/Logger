@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 // 日志级别
 namespace huxint {
@@ -21,6 +22,7 @@ constexpr std::string_view to_string(const Level level) noexcept {
         case Level::Fatal:
             return "FATAL";
         default:
+            std::unreachable();
             return "UNKNOWN";
     }
 }
