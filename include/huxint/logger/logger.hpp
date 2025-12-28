@@ -56,44 +56,32 @@ public:
 
     template <typename... Args>
     static void trace(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Trace, std::format(fmt, std::forward<Args>(args)...));
+        log<Level::Trace>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     static void debug(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Debug, std::format(fmt, std::forward<Args>(args)...));
+        log<Level::Debug>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     static void info(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Info, std::format(fmt, std::forward<Args>(args)...));
+        log<Level::Info>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     static void warn(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Warn, std::format(fmt, std::forward<Args>(args)...));
+        log<Level::Warn>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     static void error(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Error, std::format(fmt, std::forward<Args>(args)...));
+        log<Level::Error>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     template <typename... Args>
     static void fatal(std::format_string<Args...> fmt, Args &&...args) {
-        log(Level::Fatal, std::format(fmt, std::forward<Args>(args)...));
-    }
-
-    static void log(Level level, const std::string &msg) {
-        if (level < state_.level) {
-            return;
-        }
-        for (auto &sink : state_.sinks) {
-            auto *p = sink.get();                 // 确保在提交任务时，sink 还存在
-            state_.pool->submit([p, level, msg] { // p 必须值传递，否则会导致悬空指针
-                p->write(level, Name.str(), msg);
-            });
-        }
+        log<Level::Fatal>(std::format(fmt, std::forward<Args>(args)...));
     }
 
     static void flush() {
@@ -102,6 +90,20 @@ public:
 
     static constexpr std::string_view name() {
         return Name;
+    }
+
+private:
+    template <Level level>
+    static void log(const std::string &msg) {
+        if (level < state_.level) {
+            return;
+        }
+        for (auto &sink : state_.sinks) {
+            auto *p = sink.get();          // 确保在提交任务时，sink 还存在
+            state_.pool->submit([p, msg] { // p 必须值传递，否则会导致悬空指针
+                p->write(level, Name.str(), msg);
+            });
+        }
     }
 };
 
