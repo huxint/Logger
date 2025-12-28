@@ -1,6 +1,7 @@
 #pragma once
 #include "level.hpp"
 #include <algorithm>
+#include <source_location>
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -46,5 +47,9 @@ constexpr std::string_view color_code(const Level level) noexcept {
 
 constexpr std::string_view reset_code() noexcept {
     return "\033[0m";
+}
+
+constexpr auto here(std::source_location location = std::source_location::current()) -> std::source_location {
+    return location;
 }
 } // namespace huxint
