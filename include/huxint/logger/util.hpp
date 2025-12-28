@@ -40,7 +40,11 @@ constexpr std::string_view color_code(const Level level) noexcept {
             return "\033[35m"; // magenta
         default:
             std::unreachable();
-            return "\033[0m";
+            return "NOT DEFINED COLOR";
     }
+}
+
+constexpr std::string_view reset_code() noexcept {
+    return "\033[0m";
 }
 } // namespace huxint
