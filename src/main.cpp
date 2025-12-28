@@ -1,34 +1,30 @@
 #include <huxint/logger.hpp>
 #include <chrono>
-#include <source_location>
+
+using namespace huxint;
+
+void test_1() {
+    using log = huxint::Logger<>;
+    log::add_sink<ConsoleSink<true>>();
+    log::add_sink<FileSink>("log.txt");
+    log::info("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
+    log::warn("This is a warning message.");
+    log::error("This is an error message.");
+    log::fatal("This is a fatal error message.");
+    log::trace("This is a trace message.");
+}
+
+void test_2() {
+    using app = huxint::Logger<"app">;
+    app::add_sink<ConsoleSink<true>>();
+    app::info("function: {}", here().function_name());
+    app::info("file: {}", here().file_name());
+    app::info("line: {}", here().line());
+    app::info("number: {} {} {}", 1, 2, 3);
+}
 
 int main() {
-    using namespace huxint;
-    using Log = huxint::Logger<>;
-    Log::add_sink<ConsoleSink<true>>();
-    Log::add_sink<FileSink>("log.txt");
-
-    Log::info("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
-    Log::warn("This is a warning message.");
-    Log::error("This is an error message.");
-    Log::fatal("This is a fatal error message.");
-    Log::trace("This is a trace message.");
-
-    using App = huxint::Logger<"App">;
-    App::add_sink<ConsoleSink<true>>();
-
-    App::info("number: {} {} {}", 1, 2, 3);
-    App::warn("This is a warning message.");
-    App::error("This is an error message.");
-    App::fatal("This is a fatal error message.");
-    App::trace("This is a trace message.");
-
-    using huxint = huxint::Logger<"huxint">;
-    huxint::add_sink<ConsoleSink<true>>();
-    huxint::add_sink<FileSink>("huxint.log");
-    huxint::info(
-        "file {}, line {}", std::source_location::current().file_name(), std::source_location::current().line());
-
-    huxint::info("function: {}", std::source_location::current().function_name());
+    test_1();
+    test_2();
     return 0;
 }
