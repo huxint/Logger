@@ -20,9 +20,8 @@
 ## 构建
 
 ```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
+cmake -B build
+cmake --build build
 ```
 
 ## 使用示例
@@ -33,24 +32,26 @@ cmake --build .
 int main() {
     using namespace huxint;
     
-    // 添加控制台输出（带颜色）
-    Logger<>::add_sink(std::make_shared<ConsoleSink>(true));
-    
-    // 添加文件输出
-    Logger<>::add_sink(std::make_shared<FileSink>("app.log"));
+    using log = Logger<>;
+    // 添加两个输出目标
+    log::add_sink<ConsoleSink<true>>();
+    log::add_sink<FileSink>("app.log");
     
     // 设置日志级别
-    Logger<>::set_level(Level::Debug);
+    log::set_level(Level::Debug);
     
-    // 输出日志
-    Logger<>::info("Hello, {}!", "World");
-    Logger<>::warn("Warning message");
-    Logger<>::error("Error code: {}", 42);
+    log::info("Hello, {}!", "World");
+    log::warn("Warning message");
+    log::error("Error code: {}", 42);
 
-    using App = Logger<"MyModule">;
-    
     // 使用命名 Logger
-    App::info("Module specific log");
+    using app = Logger<"app">;
+    app::add_sink<ConsoleSink<true>>();
+    app::set_thread_count(4);
+    app::info("Module specific log");
+    app::info("line: {}", here().line());
+    app::info("file: {}", here().file_name());
+    app::info("function: {}", here().function_name());
     return 0;
 }
 ```
@@ -65,3 +66,7 @@ int main() {
 | Warn | 黄色 | 警告信息 |
 | Error | 红色 | 错误信息 |
 | Fatal | 紫色 | 致命错误 |
+
+## 线程池
+
+本项目使用自研的 C++23 线程池，详见 [ThreadPool](https://github.com/huxint/ThreadPool)
