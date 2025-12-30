@@ -15,7 +15,11 @@ namespace huxint {
 class Sink {
 public:
     virtual ~Sink() = default;
-    virtual void write(Level level, std::string_view name, const std::string &msg) = 0;
+    virtual void write(Level level,
+                       std::string_view name,
+                       const std::string &msg,
+                       std::string_view file = "",
+                       std::uint32_t line = 0) = 0;
     virtual void flush() = 0;
 };
 
@@ -32,19 +36,56 @@ public:
         }
     }
 
-    void write(Level level, std::string_view name, const std::string &msg) override {
+    void write(Level level,
+               std::string_view name,
+               const std::string &msg,
+               std::string_view file = "",
+               std::uint32_t line = 0) override {
         std::scoped_lock lock(mutex_);
         if constexpr (Color) {
             if (name.empty()) {
-                std::println("{}[{:>5}]{} {}", color_code(level), to_string(level), reset_code(), msg);
+                if (file.empty()) {
+                    std::println("{}[{:>5}]{} {}", color_code(level), to_string(level), reset_code(), msg);
+                } else {
+                    std::println("{}[{:>5}]{} {}{}:{}{} {}",
+                                 color_code(level),
+                                 to_string(level),
+                                 reset_code(),
+                                 "\033[32m",
+                                 file,
+                                 line,
+                                 reset_code(),
+                                 msg);
+                }
             } else {
-                std::println("{}[{:>5}]<{}>{} {}", color_code(level), to_string(level), name, reset_code(), msg);
+                if (file.empty()) {
+                    std::println("{}[{:>5}]<{}>{} {}", color_code(level), to_string(level), name, reset_code(), msg);
+                } else {
+                    std::println("{}[{:>5}]<{}>{} {}{}:{}{} {}",
+                                 color_code(level),
+                                 to_string(level),
+                                 name,
+                                 reset_code(),
+                                 "\033[32m",
+                                 file,
+                                 line,
+                                 reset_code(),
+                                 msg);
+                }
             }
         } else {
             if (name.empty()) {
-                std::println("[{:>5}] {}", to_string(level), msg);
+                if (file.empty()) {
+                    std::println("[{:>5}] {}", to_string(level), msg);
+                } else {
+                    std::println("[{:>5}] {}:{} {}", to_string(level), file, line, msg);
+                }
             } else {
-                std::println("[{:>5}]<{}> {}", to_string(level), name, msg);
+                if (file.empty()) {
+                    std::println("[{:>5}]<{}> {}", to_string(level), name, msg);
+                } else {
+                    std::println("[{:>5}]<{}> {}:{} {}", to_string(level), name, file, line, msg);
+                }
             }
         }
     }
@@ -68,13 +109,26 @@ public:
         }
     }
 
-    void write(Level level, std::string_view name, const std::string &msg) override {
+    void write(Level level,
+               std::string_view name,
+               const std::string &msg,
+               std::string_view file = "",
+               std::uint32_t line = 0) override {
         std::scoped_lock lock(mutex_);
         auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
         if (name.empty()) {
-            file_ << std::format("[time: {:%F %T}][{:>5}] {}\n", now, to_string(level), msg);
+            if (file.empty()) {
+                file_ << std::format("[time: {:%F %T}][{:>5}] {}\n", now, to_string(level), msg);
+            } else {
+                file_ << std::format("[time: {:%F %T}][{:>5}] {}:{} {}\n", now, to_string(level), file, line, msg);
+            }
         } else {
-            file_ << std::format("[time: {:%F %T}][{:>5}]<{}> {}\n", now, to_string(level), name, msg);
+            if (file.empty()) {
+                file_ << std::format("[time: {:%F %T}][{:>5}]<{}> {}\n", now, to_string(level), name, msg);
+            } else {
+                file_ << std::format(
+                    "[time: {:%F %T}][{:>5}]<{}> {}:{} {}\n", now, to_string(level), name, file, line, msg);
+            }
         }
     }
 

@@ -131,20 +131,19 @@ private:
             return;
         }
         std::string msg;
+        std::string_view file;
+        std::uint32_t line = 0;
         if constexpr (Location) {
-            msg = std::format("{}{}:{}{} {}",
-                              "\033[32m",
-                              fmt.location().file_name(),
-                              fmt.location().line(),
-                              reset_code(),
-                              std::format(fmt.format(), std::forward<Args>(args)...));
+            msg = std::format(fmt.format(), std::forward<Args>(args)...);
+            file = fmt.location().file_name();
+            line = fmt.location().line();
         } else {
             msg = std::format(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
         }
         for (auto &sink : state_.sinks) {
             auto *p = sink.get();
-            state_.pool->submit([p, msg] {
-                p->write(lv, Name.str(), msg);
+            state_.pool->submit([p, msg, file, line] {
+                p->write(lv, Name.str(), msg, file, line);
             });
         }
     }
