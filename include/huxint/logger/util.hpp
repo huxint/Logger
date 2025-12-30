@@ -26,6 +26,32 @@ struct String {
     }
 };
 
+// 封装日志格式化类，方便传递 source_location
+template <typename... Args>
+class format_location {
+public:
+    template <typename T>
+        requires std::convertible_to<T, std::string_view>
+    consteval format_location(const T &format, std::source_location location = std::source_location::current())
+    : format_(format),
+      location_(location) {}
+
+    constexpr std::format_string<Args...> format() const {
+        return format_;
+    }
+
+    constexpr std::source_location location() const {
+        return location_;
+    }
+
+private:
+    std::format_string<Args...> format_;
+    std::source_location location_;
+};
+
+template <typename... Args>
+using fmt_loc_wrapper = format_location<std::type_identity_t<Args>...>;
+
 constexpr std::string_view color_code(const Level level) noexcept {
     switch (level) {
         case Level::Trace:

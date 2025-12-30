@@ -7,6 +7,7 @@
 #include <concepts>
 #include "level.hpp"
 #include "sink.hpp"
+#include "util.hpp"
 #include <huxint/thread_pool.hpp>
 
 namespace huxint {
@@ -42,8 +43,8 @@ public:
         return ptr;
     }
 
-    static void set_level(const Level level) {
-        state_.level = level;
+    static void level(const Level lv) {
+        state_.level = lv;
     }
 
     static Level level() {
@@ -55,33 +56,33 @@ public:
     }
 
     template <typename... Args>
-    static void trace(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Trace>(std::format(fmt, std::forward<Args>(args)...));
+    static void trace(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Trace>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void debug(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Debug>(std::format(fmt, std::forward<Args>(args)...));
+    static void debug(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Debug>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void info(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Info>(std::format(fmt, std::forward<Args>(args)...));
+    static void info(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Info>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void warn(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Warn>(std::format(fmt, std::forward<Args>(args)...));
+    static void warn(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Warn>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void error(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Error>(std::format(fmt, std::forward<Args>(args)...));
+    static void error(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Error>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    static void fatal(std::format_string<Args...> fmt, Args &&...args) {
-        log<Level::Fatal>(std::format(fmt, std::forward<Args>(args)...));
+    static void fatal(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        log<Level::Fatal>(wrapper, std::forward<Args>(args)...);
     }
 
     static void flush() {
@@ -93,15 +94,21 @@ public:
     }
 
 private:
-    template <Level level>
-    static void log(const std::string &msg) {
-        if (level < state_.level) {
+    template <Level lv, typename... Args>
+    static void log(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+        if (lv < level()) {
             return;
         }
+        std::string msg = std::format("{}{}:{}{} {}",
+                                      "\033[32m",
+                                      wrapper.location().file_name(),
+                                      wrapper.location().line(),
+                                      reset_code(),
+                                      std::format(wrapper.format(), std::forward<Args>(args)...));
         for (auto &sink : state_.sinks) {
             auto *p = sink.get();          // 确保在提交任务时，sink 还存在
             state_.pool->submit([p, msg] { // p 必须值传递，否则会导致悬空指针
-                p->write(level, Name.str(), msg);
+                p->write(lv, Name.str(), msg);
             });
         }
     }
