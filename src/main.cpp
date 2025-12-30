@@ -6,12 +6,14 @@ using namespace huxint;
 void test_1() {
     using log = huxint::Logger<>;
     log::add_sink<ConsoleSink<true>>();
-    log::add_sink<FileSink>("log.txt");
-    log::info("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
+    log::add_sink<FileSink>("test.log");
+    log::info_raw("number: {} {} {} {}", 1, 2, 3, std::chrono::system_clock::now());
+    log::debug("This is a debug message.");
     log::warn("This is a warning message.");
     log::error("This is an error message.");
     log::fatal("This is a fatal error message.");
     log::trace("This is a trace message.");
+    log::trace_raw("Raw trace message without location.");
 }
 
 void test_2() {

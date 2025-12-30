@@ -1,273 +1,312 @@
 #include <huxint/logger.hpp>
-#include <string>
+#include <cassert>
+#include <chrono>
+#include <print>
 #include <thread>
 #include <vector>
-#include <atomic>
-#include <cassert>
-#include <print>
-#include <regex>
 
 namespace huxint {
-    // MemorySink for testing - collects all logs
-    class MemorySink final : public Sink {
-    public:
-        void write(const Level level, std::string_view name, const std::string &msg) override {
-            std::scoped_lock lock(mutex_);
-            logs_.emplace_back(level, std::string(name), msg);
-        }
 
-        void flush() override {}
+class MemorySink final : public Sink {
+public:
+    void write(Level level,
+               std::string_view name,
+               const std::string &msg,
+               std::string_view file,
+               std::uint32_t line) override {
+        std::scoped_lock lock(mutex_);
+        logs_.push_back({level, std::string(name), msg, std::string(file), line});
+    }
 
-        struct LogEntry {
-            Level level;
-            std::string name;
-            std::string msg;
-            LogEntry(Level l, std::string n, std::string m)
-            : level(l),
-              name(std::move(n)),
-              msg(std::move(m)) {}
-        };
+    void flush() override {}
 
-        std::vector<LogEntry> get_logs() {
-            std::scoped_lock lock(mutex_);
-            return logs_;
-        }
-
-        void clear() {
-            std::scoped_lock lock(mutex_);
-            logs_.clear();
-        }
-
-        size_t size() {
-            std::scoped_lock lock(mutex_);
-            return logs_.size();
-        }
-
-    private:
-        std::vector<LogEntry> logs_;
-        std::mutex mutex_;
+    struct Entry {
+        Level level;
+        std::string name;
+        std::string msg;
+        std::string file;
+        std::uint32_t line;
     };
+
+    auto size() {
+        std::scoped_lock lock(mutex_);
+        return logs_.size();
+    }
+
+    auto count(Level lv) {
+        std::scoped_lock lock(mutex_);
+        return std::ranges::count_if(logs_, [lv](auto &e) {
+            return e.level == lv;
+        });
+    }
+
+    auto &logs() {
+        return logs_;
+    }
+
+    bool has_location() {
+        std::scoped_lock lock(mutex_);
+        return !logs_.empty() && !logs_[0].file.empty();
+    }
+
+private:
+    std::vector<Entry> logs_;
+    std::mutex mutex_;
+};
 
 } // namespace huxint
 
-// Test 1: Concurrent logging from multiple threads
-void test_concurrent_logging() {
-    std::println("--------------------------------------------------------------------------------------");
+// 测试框架
+struct Test {
+    const char *name;
+    bool (*fn)();
+};
 
-    using TestLogger = huxint::Logger<"ConcurrentTest">;
-    auto *sink = TestLogger::add_sink<huxint::MemorySink>();
-
-    constexpr int num_threads = 10;
-    constexpr int logs_per_thread = 100;
-
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-
-    for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([t]() {
+template <typename Logger>
+void run_threads(int n, int logs_per_thread, auto &&log_fn) {
+    std::vector<std::jthread> threads;
+    threads.reserve(n);
+    for (int t = 0; t < n; ++t) {
+        threads.emplace_back([=] {
             for (int i = 0; i < logs_per_thread; ++i) {
-                TestLogger::info("Thread {} - Log {}", t, i);
+                log_fn(t, i);
             }
         });
     }
-
-    for (auto &th : threads) {
-        th.join();
-    }
-
-    TestLogger::flush();
-
-    auto logs = sink->get_logs();
-    std::println("Expected: {}", num_threads * logs_per_thread);
-    std::println("Actual:   {}", logs.size());
-
-    assert(logs.size() == num_threads * logs_per_thread);
-    std::println("[PASS] All logs recorded correctly");
 }
 
-// Test 2: Log content integrity (no data race corruption)
-void test_log_integrity() {
-    std::println("--------------------------------------------------------------------------------------");
+// 1. 并发写入测试
+bool test_concurrent() {
+    using L = huxint::Logger<"Concurrent">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
 
-    using IntegrityLogger = huxint::Logger<"IntegrityTest">;
-    auto *sink = IntegrityLogger::add_sink<huxint::MemorySink>();
+    run_threads<L>(10, 100, [](int t, int i) {
+        L::info_raw("T{} I{}", t, i);
+    });
+    L::flush();
 
-    constexpr int num_threads = 5;
-    constexpr int logs_per_thread = 50;
+    return sink->size() == 1000;
+}
 
-    std::vector<std::thread> threads;
-    for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([t]() {
-            for (int i = 0; i < logs_per_thread; ++i) {
-                IntegrityLogger::info("T{:02d}I{:03d}", t, i);
-            }
+// 2. 日志级别测试
+bool test_levels() {
+    using L = huxint::Logger<"Levels">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+    constexpr int n = 50;
+
+    std::jthread t1([] {
+        for (int i = 0; i < n; ++i) {
+            L::trace_raw("{}", i);
+        }
+    });
+    std::jthread t2([] {
+        for (int i = 0; i < n; ++i) {
+            L::debug_raw("{}", i);
+        }
+    });
+    std::jthread t3([] {
+        for (int i = 0; i < n; ++i) {
+            L::info_raw("{}", i);
+        }
+    });
+    std::jthread t4([] {
+        for (int i = 0; i < n; ++i) {
+            L::warn_raw("{}", i);
+        }
+    });
+    std::jthread t5([] {
+        for (int i = 0; i < n; ++i) {
+            L::error_raw("{}", i);
+        }
+    });
+    std::jthread t6([] {
+        for (int i = 0; i < n; ++i) {
+            L::fatal_raw("{}", i);
+        }
+    });
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+    L::flush();
+
+    using Lv = huxint::Level;
+    return sink->count(Lv::Trace) == n && sink->count(Lv::Debug) == n && sink->count(Lv::Info) == n &&
+           sink->count(Lv::Warn) == n && sink->count(Lv::Error) == n && sink->count(Lv::Fatal) == n;
+}
+
+// 3. 级别过滤测试
+bool test_level_filter() {
+    using L = huxint::Logger<"Filter">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+    L::level(huxint::Level::Warn);
+
+    L::trace_raw("should not appear");
+    L::debug_raw("should not appear");
+    L::info_raw("should not appear");
+    L::warn_raw("should appear");
+    L::error_raw("should appear");
+    L::fatal_raw("should appear");
+    L::flush();
+
+    return sink->size() == 3;
+}
+
+// 4. 带位置信息测试
+bool test_with_location() {
+    using L = huxint::Logger<"Location">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    L::info("test message");
+    L::flush();
+
+    return sink->has_location();
+}
+
+// 5. 不带位置信息测试
+bool test_without_location() {
+    using L = huxint::Logger<"NoLocation">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    L::info_raw("test message");
+    L::flush();
+
+    return !sink->has_location();
+}
+
+// 6. 命名 Logger 测试
+bool test_named_logger() {
+    using L = huxint::Logger<"MyLogger">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    L::info_raw("test");
+    L::flush();
+
+    return L::name() == "MyLogger" && sink->logs()[0].name == "MyLogger";
+}
+
+// 7. 匿名 Logger 测试
+bool test_anonymous_logger() {
+    using L = huxint::Logger<>;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    L::info_raw("test");
+    L::flush();
+
+    return L::name().empty() && sink->logs()[0].name.empty();
+}
+
+// 8. 多 Sink 测试
+bool test_multiple_sinks() {
+    using L = huxint::Logger<"MultiSink">;
+    auto *sink1 = L::add_sink<huxint::MemorySink>();
+    auto *sink2 = L::add_sink<huxint::MemorySink>();
+
+    L::info_raw("test");
+    L::flush();
+
+    return sink1->size() == 1 && sink2->size() == 1;
+}
+
+// 9. 线程池配置测试
+bool test_thread_pool() {
+    using L = huxint::Logger<"Pool">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+    L::set_thread_count(4);
+
+    for (int i = 0; i < 200; ++i) {
+        L::info_raw("log {}", i);
+    }
+    L::flush();
+
+    return sink->size() == 200;
+}
+
+// 10. 格式化参数测试
+bool test_format_args() {
+    using L = huxint::Logger<"Format">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    L::info_raw("int: {}, str: {}, float: {:.2f}", 42, "hello", 3.14159);
+    L::flush();
+
+    return sink->logs()[0].msg == "int: 42, str: hello, float: 3.14";
+}
+
+// 11. 压力测试
+bool test_stress() {
+    using L = huxint::Logger<"Stress">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+    L::set_thread_count(8);
+
+    auto start = std::chrono::steady_clock::now();
+    run_threads<L>(20, 5000, [](int t, int i) {
+        L::info_raw("T{} I{}", t, i);
+    });
+    L::flush();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+
+    std::print("{} logs in {}ms ({} logs/s) ", sink->size(), ms, sink->size() * 1000 / (ms + 1));
+    return sink->size() == 100000;
+}
+
+// 12. 数据完整性测试
+bool test_integrity() {
+    using L = huxint::Logger<"Integrity">;
+    auto *sink = L::add_sink<huxint::MemorySink>();
+
+    constexpr int n = 1000;
+    for (int i = 0; i < n; ++i) {
+        L::info_raw("MSG{:04d}", i);
+    }
+    L::flush();
+
+    if (sink->size() != n) {
+        return false;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        auto expected = std::format("MSG{:04d}", i);
+        bool found = std::ranges::any_of(sink->logs(), [&](auto &e) {
+            return e.msg == expected;
         });
-    }
-
-    for (auto &th : threads) {
-        th.join();
-    }
-
-    IntegrityLogger::flush();
-
-    auto logs = sink->get_logs();
-    std::regex pattern(R"(T\d{2}I\d{3})");
-    int valid_count = 0;
-
-    for (const auto &log : logs) {
-        if (std::regex_match(log.msg, pattern)) {
-            ++valid_count;
-        } else {
-            std::println("[FAIL] Corrupted log: {}", log.msg);
+        if (!found) {
+            return false;
         }
     }
-
-    std::println("Valid logs: {}/{}", valid_count, logs.size());
-    assert(valid_count == static_cast<int>(logs.size()));
-    std::println("[PASS] All log contents intact");
-}
-
-// Test 3: Thread pool configuration
-void test_thread_pool_config() {
-    std::println("--------------------------------------------------------------------------------------");
-
-    using PoolLogger = huxint::Logger<"PoolTest">;
-    auto *sink = PoolLogger::add_sink<huxint::MemorySink>();
-    PoolLogger::set_thread_count(4);
-
-    constexpr int total_logs = 200;
-
-    for (int i = 0; i < total_logs; ++i) {
-        PoolLogger::info("Log entry {}", i);
-    }
-
-    PoolLogger::flush();
-
-    auto logs = sink->get_logs();
-    std::println("Pool size: 4");
-    std::println("Expected: {}", total_logs);
-    std::println("Actual:   {}", logs.size());
-
-    assert(logs.size() == total_logs);
-    std::println("[PASS] Thread pool processed all logs");
-}
-
-// Test 4: Concurrent logging at different levels
-void test_concurrent_levels() {
-    std::println("--------------------------------------------------------------------------------------");
-    using LevelLogger = huxint::Logger<"LevelTest">;
-    auto *sink = LevelLogger::add_sink<huxint::MemorySink>();
-
-    std::vector<std::thread> threads;
-    constexpr int logs_per_level = 50;
-
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::trace("trace {}", i);
-        }
-    });
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::debug("debug {}", i);
-        }
-    });
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::info("info {}", i);
-        }
-    });
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::warn("warn {}", i);
-        }
-    });
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::error("error {}", i);
-        }
-    });
-    threads.emplace_back([]() {
-        for (int i = 0; i < logs_per_level; ++i) {
-            LevelLogger::fatal("fatal {}", i);
-        }
-    });
-
-    for (auto &th : threads) {
-        th.join();
-    }
-
-    LevelLogger::flush();
-
-    auto logs = sink->get_logs();
-
-    int counts[6] = {0};
-    for (const auto &log : logs) {
-        counts[static_cast<int>(log.level)]++;
-    }
-
-    std::println("TRACE: {}, DEBUG: {}, INFO: {}, WARN: {}, ERROR: {}, FATAL: {}",
-                 counts[0],
-                 counts[1],
-                 counts[2],
-                 counts[3],
-                 counts[4],
-                 counts[5]);
-
-    for (int i = 0; i < 6; ++i) {
-        assert(counts[i] == logs_per_level);
-    }
-    std::println("[PASS] All log levels recorded correctly");
-}
-
-// Test 5: High concurrency stress test
-void test_stress() {
-    std::println("--------------------------------------------------------------------------------------");
-
-    using StressLogger = huxint::Logger<"StressTest">;
-    auto *sink = StressLogger::add_sink<huxint::MemorySink>();
-    StressLogger::set_thread_count(8);
-
-    constexpr int num_threads = 20;
-    constexpr int logs_per_thread = 5000;
-    std::atomic<int> submitted{0};
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    std::vector<std::thread> threads;
-    for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([t, &submitted]() {
-            for (int i = 0; i < logs_per_thread; ++i) {
-                StressLogger::info("Stress T{} I{}", t, i);
-                submitted.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
-    }
-
-    for (auto &th : threads) {
-        th.join();
-    }
-
-    StressLogger::flush();
-
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-    auto logs = sink->get_logs();
-    std::println("Submitted: {}", submitted.load());
-    std::println("Recorded:  {}", logs.size());
-    std::println("Duration:  {}ms", duration.count());
-    std::println("Throughput: {} logs/s", logs.size() * 1000 / (duration.count() + 1));
-
-    assert(logs.size() == num_threads * logs_per_thread);
-    std::println("[PASS] All logs recorded under high concurrency");
+    return true;
 }
 
 int main() {
-    test_concurrent_logging();
-    test_log_integrity();
-    test_thread_pool_config();
-    test_concurrent_levels();
-    test_stress();
-    std::println("All tests passed!");
-    return 0;
+    Test tests[] = {
+        {"Concurrent logging", test_concurrent},
+        {"All log levels", test_levels},
+        {"Level filtering", test_level_filter},
+        {"With location info", test_with_location},
+        {"Without location info", test_without_location},
+        {"Named logger", test_named_logger},
+        {"Anonymous logger", test_anonymous_logger},
+        {"Multiple sinks", test_multiple_sinks},
+        {"Thread pool config", test_thread_pool},
+        {"Format arguments", test_format_args},
+        {"Stress test", test_stress},
+        {"Data integrity", test_integrity},
+    };
+
+    int passed = 0;
+    for (auto &[name, fn] : tests) {
+        std::print("[TEST] {:<30} ... ", name);
+        if (fn()) {
+            std::println("\033[32mPASS\033[0m");
+            ++passed;
+        } else {
+            std::println("\033[31mFAIL\033[0m");
+        }
+    }
+
+    std::println("\n{}/{} tests passed", passed, std::size(tests));
+    return passed == std::size(tests) ? 0 : 1;
 }
