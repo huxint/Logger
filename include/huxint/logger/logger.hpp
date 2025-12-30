@@ -57,32 +57,63 @@ public:
 
     template <typename... Args>
     static void trace(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Trace>(wrapper, std::forward<Args>(args)...);
+        format<Level::Trace, true>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     static void debug(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Debug>(wrapper, std::forward<Args>(args)...);
+        format<Level::Debug, true>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     static void info(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Info>(wrapper, std::forward<Args>(args)...);
+        format<Level::Info, true>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     static void warn(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Warn>(wrapper, std::forward<Args>(args)...);
+        format<Level::Warn, true>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     static void error(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Error>(wrapper, std::forward<Args>(args)...);
+        format<Level::Error, true>(wrapper, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
     static void fatal(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
-        log<Level::Fatal>(wrapper, std::forward<Args>(args)...);
+        format<Level::Fatal, true>(wrapper, std::forward<Args>(args)...);
+    }
+
+    // 不带文件名和行号的版本
+    template <typename... Args>
+    static void trace_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Trace, false>(fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void debug_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Debug, false>(fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void info_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Info, false>(fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void warn_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Warn, false>(fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void error_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Error, false>(fmt, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    static void fatal_raw(std::format_string<Args...> fmt, Args &&...args) {
+        format<Level::Fatal, false>(fmt, std::forward<Args>(args)...);
     }
 
     static void flush() {
@@ -94,20 +125,25 @@ public:
     }
 
 private:
-    template <Level lv, typename... Args>
-    static void log(fmt_loc_wrapper<Args...> wrapper, Args &&...args) {
+    template <Level lv, bool Location, typename Fmt, typename... Args>
+    static void format(Fmt &&fmt, Args &&...args) {
         if (lv < level()) {
             return;
         }
-        std::string msg = std::format("{}{}:{}{} {}",
-                                      "\033[32m",
-                                      wrapper.location().file_name(),
-                                      wrapper.location().line(),
-                                      reset_code(),
-                                      std::format(wrapper.format(), std::forward<Args>(args)...));
+        std::string msg;
+        if constexpr (Location) {
+            msg = std::format("{}{}:{}{} {}",
+                              "\033[32m",
+                              fmt.location().file_name(),
+                              fmt.location().line(),
+                              reset_code(),
+                              std::format(fmt.format(), std::forward<Args>(args)...));
+        } else {
+            msg = std::format(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
+        }
         for (auto &sink : state_.sinks) {
-            auto *p = sink.get();          // 确保在提交任务时，sink 还存在
-            state_.pool->submit([p, msg] { // p 必须值传递，否则会导致悬空指针
+            auto *p = sink.get();
+            state_.pool->submit([p, msg] {
                 p->write(lv, Name.str(), msg);
             });
         }
