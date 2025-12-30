@@ -1,6 +1,7 @@
 #pragma once
 #include "level.hpp"
 #include <algorithm>
+#include <format>
 #include <source_location>
 #ifdef WIN32
 #include <windows.h>
@@ -28,17 +29,17 @@ struct String {
 constexpr std::string_view color_code(const Level level) noexcept {
     switch (level) {
         case Level::Trace:
-            return "\033[90m"; // gray
+            return "\033[100m"; // gray
         case Level::Debug:
-            return "\033[36m"; // cyan
+            return "\033[44m"; // cyan
         case Level::Info:
-            return "\033[32m"; // green
+            return "\033[42m"; // green
         case Level::Warn:
-            return "\033[33m"; // yellow
+            return "\033[43m"; // yellow
         case Level::Error:
-            return "\033[31m"; // red
+            return "\033[41m"; // red
         case Level::Fatal:
-            return "\033[35m"; // magenta
+            return "\033[45m"; // magenta
         default:
             std::unreachable();
             return "NOT DEFINED COLOR";
