@@ -36,9 +36,9 @@ public:
         std::scoped_lock lock(mutex_);
         if constexpr (Color) {
             if (name.empty()) {
-                std::println("{}[{:>5}] {}{}", color_code(level), to_string(level), msg, reset_code());
+                std::println("{}[{:>5}]{} {}", color_code(level), to_string(level), reset_code(), msg);
             } else {
-                std::println("{}[{:>5}]<{}> {}{}", color_code(level), to_string(level), name, msg, reset_code());
+                std::println("{}[{:>5}]<{}>{} {}", color_code(level), to_string(level), name, reset_code(), msg);
             }
         } else {
             if (name.empty()) {
