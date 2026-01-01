@@ -8,7 +8,7 @@
 #include "level.hpp"
 #include "sink.hpp"
 #include "util.hpp"
-#include <huxint/thread_pool.hpp>
+#include <huxint/thread_pool>
 
 namespace huxint {
 // Logger 状态
