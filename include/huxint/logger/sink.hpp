@@ -28,12 +28,14 @@ template <bool Color = true>
 class ConsoleSink final : public Sink {
 public:
     explicit ConsoleSink() {
-        if constexpr (Color && WIN32) {
+#ifdef _WIN32
+        if constexpr (Color) {
             const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
             DWORD mode = 0;
             GetConsoleMode(hOut, &mode);
             SetConsoleMode(hOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
         }
+#endif
     }
 
     void write(Level level,
